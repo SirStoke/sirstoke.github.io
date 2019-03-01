@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+      <!-- Enable responsiveness on mobile devices-->
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+      <title>Random stuff</title>
+
+      <!-- CSS -->
+      <link rel="stylesheet" href="https:&#x2f;&#x2f;sirstoke.github.io&#x2f;print.css" media="print">
+      <link rel="stylesheet" href="https:&#x2f;&#x2f;sirstoke.github.io&#x2f;poole.css">
+      <link rel="stylesheet" href="https:&#x2f;&#x2f;sirstoke.github.io&#x2f;hyde.css">
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400italic,700|Abril+Fatface|Raleway">
+
+      
+        <link rel="alternate" type="application/rss+xml" title="RSS" href="https:&#x2f;&#x2f;sirstoke.github.io&#x2f;rss.xml">
+      
+
+      
+      
+    </head>
+
+    <body class="theme-base-08 ">
+        
+            <div class="sidebar">
+                <div class="container sidebar-sticky">
+                    <div class="sidebar-about">
+                        
+                            <a href="https:&#x2f;&#x2f;sirstoke.github.io"><h1>Random stuff</h1></a>
+                            
+                            <p class="lead">Mostly CS. Probably</p>
+                            
+                        
+                    </div>
+
+                    <ul class="sidebar-nav">
+                        
+                        
+                        <li class="sidebar-nav-item"><a href="&#x2f;pages&#x2f;about">About</a></li>
+                        
+                        
+                    </ul>
+                </div>
+            </div>
+        
+
+        <div class="content container">
+            
+<div class="post">
+  <h1 class="post-title">A Song of Bluetooth chinese lamp &amp; excruciating reverse engineering - Day 2</h1>
+  <span class="post-date">2019-03-05</span>
+  <p><a href="https://sirstoke.github.io/chinese-lamp-reverse-engineer-day-1/">Previous article</a></p>
+<h2 id="we-need-to-go-deeper">We need to go deeper</h2>
+<p>At this point I knew that I needed to do what all the cool kids are doing nowadays and <a href="https://en.wikipedia.org/wiki/Piracy">totally buy</a> IDA Pro, but I wanted to try and go on the open source path. So I again turned to Google and found <a href="https://rada.re/r/">radare2</a>, and even better I found <a href="https://github.com/radareorg/cutter">Cutter</a>, an experimental GUI for radare2.</p>
+<p>I should also point out that I was reversing the x86 version of the packer because I am just more accustomed to x86 assembly. Sorry not sorry.</p>
+<p><code>Readelf -a</code> never fails to amaze me and it found multiple entrypoints:</p>
+<p><img src="/images/libexec_entrypoints.png" alt="YOU GET AN ENTRYPOINT! AND YOU GET AN ENTRYPOINT! EVERYONE.." /></p>
+<p>Fired Cutter up, opened <code>x86/libexec.so</code>, added a symbol to <code>+0x3b530</code> and started looking around.</p>
+<p><em>Everything</em> except the bytes around that function look gibberish, and that usually is pretty promising. I spark with joy recognizing some <code>INT 0x80</code> after <code>mov eax, 9</code> (mmap).</p>
+<p>I see that Cutter has a big play button, and after sprinkling breakpoints on some <code>call</code>s I click on it. Cutter suddenly switches to an horrible black theme and <code>push</code> instructions don't seem to work (they literally don't put the value on the stack).</p>
+<p>At the time of writing Cutter is considered beta software. Maybe learning radare2 cli can help?</p>
+<p>I spend the rest of the evening reading the radare2 <a href="https://radare.gitbooks.io/radare2book/content/">official book</a> (it looked <em>very</em> cool) and already being a vim user I felt quite at home.</p>
+<p>But I was still having problems with actually running the function.</p>
+<p>I decided to chat about this project with a <a href="https://twitter.com/wsxarcher">dear friend</a> of mine that works in the cybersecurity field and he recommended <a href="http://www.giovanni-rocca.com/">Giovanni Rocca's blog</a>.</p>
+<p>After reading Giovanni's blog (<a href="http://www.giovanni-rocca.com/giving-yourself-a-window-to-debug-a-shared-library-before-dt_init-with-frida-on-android/">this</a> particular article to be precise) I am convinced I need to use <a href="https://www.frida.re/">frida</a> and that, in general, I must continue my dynamic analysis on a real phone. Time to root my OnePlus 6. And I need to do this on Windows. Darn it.</p>
+<p>TL;DR for the day: Wasted an evening learning radare2, ended up using Frida AND needed to use the worst OS I could end up using.</p>
+
+</div>
+
+        </div>
+
+    </body>
+
+</html>

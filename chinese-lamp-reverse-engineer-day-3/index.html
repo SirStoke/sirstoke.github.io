@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+      <!-- Enable responsiveness on mobile devices-->
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+      <title>Random stuff</title>
+
+      <!-- CSS -->
+      <link rel="stylesheet" href="https:&#x2f;&#x2f;sirstoke.github.io&#x2f;print.css" media="print">
+      <link rel="stylesheet" href="https:&#x2f;&#x2f;sirstoke.github.io&#x2f;poole.css">
+      <link rel="stylesheet" href="https:&#x2f;&#x2f;sirstoke.github.io&#x2f;hyde.css">
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400italic,700|Abril+Fatface|Raleway">
+
+      
+        <link rel="alternate" type="application/rss+xml" title="RSS" href="https:&#x2f;&#x2f;sirstoke.github.io&#x2f;rss.xml">
+      
+
+      
+      
+    </head>
+
+    <body class="theme-base-08 ">
+        
+            <div class="sidebar">
+                <div class="container sidebar-sticky">
+                    <div class="sidebar-about">
+                        
+                            <a href="https:&#x2f;&#x2f;sirstoke.github.io"><h1>Random stuff</h1></a>
+                            
+                            <p class="lead">Mostly CS. Probably</p>
+                            
+                        
+                    </div>
+
+                    <ul class="sidebar-nav">
+                        
+                        
+                        <li class="sidebar-nav-item"><a href="&#x2f;pages&#x2f;about">About</a></li>
+                        
+                        
+                    </ul>
+                </div>
+            </div>
+        
+
+        <div class="content container">
+            
+<div class="post">
+  <h1 class="post-title">A Song of Bluetooth chinese lamp &amp; excruciating reverse engineering - Day 3</h1>
+  <span class="post-date">2019-03-22</span>
+  <p><a href="https://sirstoke.github.io/chinese-lamp-reverse-engineer-day-2/">Previous article</a></p>
+<h2 id="g0t-r00t-w00t">G0t r00t w00t</h2>
+<p>Once I got my device rooted I started looking for Frida docs and tutorials. <code>frida-server</code> seemed the most basic way to get frida up and running on a process, but it hanged without erroring (I was pretty sure the process was ptrace-ing himself already).</p>
+<p>Apparently Frida provides a shared object (called <a href="https://frida.re/docs/gadget/">&quot;gadget&quot;</a>) that you can inject using something like <code>LD_PRELOAD</code></p>
+<p>So I learned how to <a href="https://koz.io/using-frida-on-android-without-root/">load a frida gadget</a> and that seemed straightforward enough. I moved the gadget under <code>lib/armaebi/libstocazzo.so</code> and then added some smali bytecode in the <code>s/h/e/l/l/S</code> constructor:</p>
+<pre style="background-color:#2b303b;">
+<span style="color:#c0c5ce;">    const-string v9, &quot;stocazzo&quot;
+    const-string v8, &quot;Loading stocazzo&quot;
+    invoke-static {v9, v8}, Landroid/util/Log;-&gt;i(Ljava/lang/String;Ljava/lang/String;)I
+
+    const-string v14, &quot;stocazzo&quot;
+    invoke-static {v14}, Ljava/lang/System;-&gt;loadLibrary(Ljava/lang/String;)V
+
+    const-string v10, &quot;Finished loading stocazzo&quot;
+    invoke-static {v9, v10}, Landroid/util/Log;-&gt;i(Ljava/lang/String;Ljava/lang/String;)I
+</span></pre>
+<p>I know you italian people are either chuckling or leaving the website. I don't regret anything.</p>
+<p>Anyway, after repacking, signing and <code>logcat 2&gt;&amp;1 | grep stocazzo</code>-ing I was seeing the first log and not the second. On the bright side I could see the Gadget process with <code>frida-ps -U</code>, and I called this a success, because at least I could now debug Frida with Frida. I was seriously happy.</p>
+<p>Except <code>frida-trace -U Gadget</code> was crashing the gadget. The <em>gadget</em> was crashing, not the actual app. And my happiness faded away in an instant.</p>
+<p>(Frida didn't work on Android 9 at the time, that's why it was crashing. They <a href="https://github.com/frida/frida-java/commit/7fe0e72de1beba4849179adc5e4e8eb2e8e9e04e">fixed</a> it more or less a month later)</p>
+<p>I was feeling hopeless at this time. I seriously was. How was I supposed to continue my reverse engineering if apparently even the most used tool for this job wasn't working? </p>
+<h2 id="let-s-sniff-some">Let's sniff some</h2>
+<p>I decided to change plans. Maybe there was a way to sniff bluetooth packets? <a href="https://stackoverflow.com/questions/23877761/sniffing-logging-your-own-android-bluetooth-traffic">There was</a>, but it seemed to not work on my OnePlus 6.</p>
+<p>And then something mystic happened: I started wireshark up and a mysterious &quot;One Plus 6&quot; device showed up. Could it be that we can sniff bluetooth packets from wireshark?</p>
+<p>My hand was shaking as I clicked on that device and quickly added a <code>bluetooth</code> filter. I was seeing packets come and go, and the traffic stopped once the app was killed. I started to feel joy again.</p>
+<p>(After some googling I understood that I can access my phone as a wireshark interface because of <a href="https://www.wireshark.org/docs/man-pages/androiddump.html">androiddump</a>. I fucking love wireshark.)</p>
+<p>There was still a problem at this point: I knew nothing about bluetooth, but luckily the app seemed to only exchange SPP and L2CAP packets. It was time to get a bit more practical.</p>
+<p>I started looking at packets and the app was sending an heartbeat (as SPP packet) composed of these bytes:</p>
+<pre style="background-color:#2b303b;">
+<span style="color:#c0c5ce;">[0x01, 0xfe, 0x00, 0x00, 0x51, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80]
+</span></pre>
+<p>And the lamp was answering with:</p>
+<pre style="background-color:#2b303b;">
+<span style="color:#c0c5ce;">01:fe:00:00:41:00:28:00:00:00:00:00:00:00:00:00:00:1f:00:1f:00:00:00:05:00:00:00:00:00:00:00:00:00:2a:a1:12:02:e0:c1:9f
+</span></pre>
+<p>All of this on channel number 2.</p>
+<p>I didn't want to dig into what this actually meant as I was not ready to lose my sanity (and joy).</p>
+<p>Time to write some code. After Googling deep for 3-4 hours in an attempt to understand the difference between SPP, SDP and L2CAP packets I found <a href="https://github.com/eelcocramer/node-bluetooth-serial-port">this</a> library and wrote a very basic node.js script:</p>
+<pre style="background-color:#2b303b;">
+<span style="color:#b48ead;">let </span><span style="color:#bf616a;">btSerial </span><span style="color:#c0c5ce;">= new (</span><span style="color:#bf616a;">require</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">bluetooth-serial-port</span><span style="color:#c0c5ce;">&#39;)).</span><span style="color:#bf616a;">BluetoothSerialPort</span><span style="color:#c0c5ce;">();
+
+</span><span style="color:#b48ead;">let </span><span style="color:#bf616a;">address </span><span style="color:#c0c5ce;">= &quot;</span><span style="color:#a3be8c;">&lt;redacted&gt;</span><span style="color:#c0c5ce;">&quot;
+</span><span style="color:#b48ead;">let </span><span style="color:#bf616a;">channel </span><span style="color:#c0c5ce;">= </span><span style="color:#d08770;">2
+
+</span><span style="color:#b48ead;">let </span><span style="color:#bf616a;">value </span><span style="color:#c0c5ce;">= </span><span style="color:#ebcb8b;">Buffer</span><span style="color:#c0c5ce;">.</span><span style="color:#bf616a;">from</span><span style="color:#c0c5ce;">([</span><span style="color:#d08770;">0x01</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0xfe</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x51</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x10</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x80</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x80</span><span style="color:#c0c5ce;">])
+
+</span><span style="color:#bf616a;">btSerial</span><span style="color:#c0c5ce;">.</span><span style="color:#bf616a;">connect</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">address</span><span style="color:#c0c5ce;">, </span><span style="color:#bf616a;">channel</span><span style="color:#c0c5ce;">, </span><span style="color:#b48ead;">function</span><span style="color:#c0c5ce;">() {
+  console.</span><span style="color:#96b5b4;">log</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">connected</span><span style="color:#c0c5ce;">&#39;);
+
+  </span><span style="color:#bf616a;">btSerial</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">write</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">value</span><span style="color:#c0c5ce;">, </span><span style="color:#b48ead;">function</span><span style="color:#c0c5ce;">(err, bytesWritten) {
+    </span><span style="color:#b48ead;">if </span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">err</span><span style="color:#c0c5ce;">) console.</span><span style="color:#96b5b4;">log</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">err</span><span style="color:#c0c5ce;">);
+  });
+
+  </span><span style="color:#bf616a;">btSerial</span><span style="color:#c0c5ce;">.</span><span style="color:#bf616a;">on</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">data</span><span style="color:#c0c5ce;">&#39;, </span><span style="color:#b48ead;">function</span><span style="color:#c0c5ce;">(buffer) {
+    console.</span><span style="color:#96b5b4;">log</span><span style="color:#c0c5ce;">(buffer);
+  });
+}, </span><span style="color:#b48ead;">function </span><span style="color:#c0c5ce;">() {
+  console.</span><span style="color:#96b5b4;">log</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">cannot connect</span><span style="color:#c0c5ce;">&#39;);
+});
+</span></pre>
+<p>And back I received:</p>
+<pre style="background-color:#2b303b;">
+<span style="color:#c0c5ce;">&lt;Buffer 01 fe 00 00 41 00 28 00 00 00 00 00 00 00 00 00 00 1f 00 1f 00 00 00 05 00 00 00 00 00 00 00 00 00 2a a1 12 02 e0 c1 9f&gt;
+</span></pre>
+<p>Too much success in a day. I was fearing for something very bad.</p>
+<p>Turning off the lights resulted in this SPP packet being sent:</p>
+<pre style="background-color:#2b303b;">
+<span style="color:#c0c5ce;">01:fe:00:00:51:81:18:00:00:00:00:00:00:00:00:00:0d:07:01:03:01:02:0e:00
+</span></pre>
+<p>And sending it <em>was turning the lights off</em>. I was about to cry.</p>
+<p>The packet to turn them on was:</p>
+<pre style="background-color:#2b303b;">
+<span style="color:#c0c5ce;">01:fe:00:00:51:81:18:00:00:00:00:00:00:00:00:00:0d:07:01:03:01:01:0e:00
+</span></pre>
+<p>Which differs from the other packet for only a byte (01 instead of 02).</p>
+<p>This lamp has RGB capabilities, but for reasons I think are obvious I chose not to investigate that. If somebody has the courage to do that please let me know!</p>
+<p>Choosing the smart home assistant was easy as Google Home actions have to be published before they can be used (i.e you can't build actions only you will use). Pretty idiotic if you ask me. Anyway, Alexa was chosen as my smart home empress.</p>
+<p>Time to setup my Raspberry.</p>
+<p>I'm an hardcore <a href="https://archlinux.org">archlinux</a> fan, but it needs an ethernet cable to install. In 2019. I guess i'm going with Raspbian.</p>
+<p>After following <a href="https://www.raspberrypi.org/documentation/configuration/wireless/headless.md">these</a> instruction in order to be as lazy as possible, and after having them fail on me and almost choke on a myriad of cables coming from and going to my raspberry, I had a Raspbian setup.</p>
+<p>I was expecting some trouble with the native module <code>node-bluetooth-serial-port</code> is using, but it actually worked on the raspberry the first time. I was incredibily surprised.</p>
+<p>I wanted to have HTTP calls to control the lights and properly clean the bluetooth connection upon exit. This is what I ended up writing:</p>
+<pre style="background-color:#2b303b;">
+<span style="color:#b48ead;">var </span><span style="color:#bf616a;">btSerial </span><span style="color:#c0c5ce;">= new (</span><span style="color:#bf616a;">require</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">bluetooth-serial-port</span><span style="color:#c0c5ce;">&#39;)).</span><span style="color:#bf616a;">BluetoothSerialPort</span><span style="color:#c0c5ce;">();
+</span><span style="color:#b48ead;">var </span><span style="color:#bf616a;">express  </span><span style="color:#c0c5ce;">= </span><span style="color:#bf616a;">require</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">express</span><span style="color:#c0c5ce;">&#39;);
+</span><span style="color:#b48ead;">var </span><span style="color:#bf616a;">app </span><span style="color:#c0c5ce;">= </span><span style="color:#bf616a;">express</span><span style="color:#c0c5ce;">();
+
+</span><span style="color:#b48ead;">var </span><span style="color:#bf616a;">address </span><span style="color:#c0c5ce;">= &quot;</span><span style="color:#a3be8c;">&lt;redacted&gt;</span><span style="color:#c0c5ce;">&quot;
+</span><span style="color:#b48ead;">var </span><span style="color:#bf616a;">channel </span><span style="color:#c0c5ce;">= </span><span style="color:#d08770;">2
+
+</span><span style="color:#b48ead;">let </span><span style="color:#bf616a;">ping </span><span style="color:#c0c5ce;">= </span><span style="color:#ebcb8b;">Buffer</span><span style="color:#c0c5ce;">.</span><span style="color:#bf616a;">from</span><span style="color:#c0c5ce;">([</span><span style="color:#d08770;">0x01</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0xfe</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x51</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x10</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x80</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">, </span><span style="color:#d08770;">0x80</span><span style="color:#c0c5ce;">]);
+</span><span style="color:#b48ead;">let </span><span style="color:#bf616a;">shutoff </span><span style="color:#c0c5ce;">= </span><span style="color:#ebcb8b;">Buffer</span><span style="color:#c0c5ce;">.</span><span style="color:#bf616a;">from</span><span style="color:#c0c5ce;">([</span><span style="color:#d08770;">0x01</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0xfe</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x51</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x81</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x18</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x0d</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x07</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x01</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x03</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x01</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x02</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x0e</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">]);
+</span><span style="color:#b48ead;">let </span><span style="color:#bf616a;">turnon </span><span style="color:#c0c5ce;">= </span><span style="color:#ebcb8b;">Buffer</span><span style="color:#c0c5ce;">.</span><span style="color:#bf616a;">from</span><span style="color:#c0c5ce;">([</span><span style="color:#d08770;">0x01</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0xfe</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x51</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x81</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x18</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x0d</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x07</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x01</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x03</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x01</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x01</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x0e</span><span style="color:#c0c5ce;">,</span><span style="color:#d08770;">0x00</span><span style="color:#c0c5ce;">]);
+
+</span><span style="color:#bf616a;">btSerial</span><span style="color:#c0c5ce;">.</span><span style="color:#bf616a;">connect</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">address</span><span style="color:#c0c5ce;">, </span><span style="color:#bf616a;">channel</span><span style="color:#c0c5ce;">, </span><span style="color:#b48ead;">function</span><span style="color:#c0c5ce;">() {
+  console.</span><span style="color:#96b5b4;">log</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">Connected to lamp</span><span style="color:#c0c5ce;">&#39;);
+
+  </span><span style="color:#bf616a;">setInterval</span><span style="color:#c0c5ce;">(</span><span style="color:#b48ead;">function</span><span style="color:#c0c5ce;">() {
+    </span><span style="color:#bf616a;">btSerial</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">write</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">ping</span><span style="color:#c0c5ce;">, </span><span style="color:#b48ead;">function</span><span style="color:#c0c5ce;">(err, bytesWritten) {
+      </span><span style="color:#b48ead;">if </span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">err</span><span style="color:#c0c5ce;">) </span><span style="color:#b48ead;">return </span><span style="color:#c0c5ce;">console.</span><span style="color:#96b5b4;">log</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">err</span><span style="color:#c0c5ce;">);
+
+      console.</span><span style="color:#96b5b4;">log</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">Pinged lamp</span><span style="color:#c0c5ce;">&#39;);
+    })
+  }, </span><span style="color:#d08770;">500</span><span style="color:#c0c5ce;">);
+
+  </span><span style="color:#bf616a;">btSerial</span><span style="color:#c0c5ce;">.</span><span style="color:#bf616a;">on</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">data</span><span style="color:#c0c5ce;">&#39;, </span><span style="color:#b48ead;">function</span><span style="color:#c0c5ce;">(buffer) {
+    console.</span><span style="color:#96b5b4;">log</span><span style="color:#c0c5ce;">(buffer);
+  });
+
+  </span><span style="color:#bf616a;">app</span><span style="color:#c0c5ce;">.</span><span style="color:#bf616a;">listen</span><span style="color:#c0c5ce;">(process.env[&#39;</span><span style="color:#a3be8c;">PORT</span><span style="color:#c0c5ce;">&#39;] || </span><span style="color:#d08770;">3000</span><span style="color:#c0c5ce;">, () </span><span style="color:#b48ead;">=&gt; </span><span style="color:#c0c5ce;">console.</span><span style="color:#96b5b4;">log</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">HTTP server listening!</span><span style="color:#c0c5ce;">&#39;));
+}, </span><span style="color:#b48ead;">function </span><span style="color:#c0c5ce;">() {
+  console.</span><span style="color:#96b5b4;">log</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">Failed to connect</span><span style="color:#c0c5ce;">&#39;);
+
+  process.</span><span style="color:#bf616a;">exit</span><span style="color:#c0c5ce;">(</span><span style="color:#d08770;">1</span><span style="color:#c0c5ce;">);
+});
+
+</span><span style="color:#bf616a;">app</span><span style="color:#c0c5ce;">.</span><span style="color:#bf616a;">post</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">/lights</span><span style="color:#c0c5ce;">&#39;, (req, res) </span><span style="color:#b48ead;">=&gt; </span><span style="color:#c0c5ce;">{
+  </span><span style="color:#bf616a;">btSerial</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">write</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">turnon</span><span style="color:#c0c5ce;">, </span><span style="color:#b48ead;">function</span><span style="color:#c0c5ce;">(err, bytesWritten) {
+    </span><span style="color:#b48ead;">if </span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">err</span><span style="color:#c0c5ce;">) console.</span><span style="color:#96b5b4;">log</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">err</span><span style="color:#c0c5ce;">);
+
+    </span><span style="color:#bf616a;">res</span><span style="color:#c0c5ce;">.</span><span style="color:#bf616a;">send</span><span style="color:#c0c5ce;">(&#39;&#39;);
+  });
+});
+
+</span><span style="color:#bf616a;">app</span><span style="color:#c0c5ce;">.</span><span style="color:#bf616a;">delete</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">/lights</span><span style="color:#c0c5ce;">&#39;, (req, res) </span><span style="color:#b48ead;">=&gt; </span><span style="color:#c0c5ce;">{
+  </span><span style="color:#bf616a;">btSerial</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">write</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">shutoff</span><span style="color:#c0c5ce;">, </span><span style="color:#b48ead;">function</span><span style="color:#c0c5ce;">(err, bytesWritten) {
+    </span><span style="color:#b48ead;">if </span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">err</span><span style="color:#c0c5ce;">) console.</span><span style="color:#96b5b4;">log</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">err</span><span style="color:#c0c5ce;">);
+
+    </span><span style="color:#bf616a;">res</span><span style="color:#c0c5ce;">.</span><span style="color:#bf616a;">send</span><span style="color:#c0c5ce;">(&#39;&#39;);
+  });
+});
+
+</span><span style="color:#bf616a;">btSerial</span><span style="color:#c0c5ce;">.</span><span style="color:#bf616a;">inquire</span><span style="color:#c0c5ce;">();
+
+</span><span style="color:#b48ead;">function </span><span style="color:#8fa1b3;">cleanup</span><span style="color:#c0c5ce;">() {
+  </span><span style="color:#bf616a;">btSerial</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">close</span><span style="color:#c0c5ce;">();
+
+  process.</span><span style="color:#bf616a;">exit</span><span style="color:#c0c5ce;">();
+}
+
+
+process.</span><span style="color:#bf616a;">on</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">exit</span><span style="color:#c0c5ce;">&#39;, </span><span style="color:#bf616a;">cleanup</span><span style="color:#c0c5ce;">);
+process.</span><span style="color:#bf616a;">on</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">SIGINT</span><span style="color:#c0c5ce;">&#39;, </span><span style="color:#bf616a;">cleanup</span><span style="color:#c0c5ce;">);
+process.</span><span style="color:#bf616a;">on</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">SIGUSR1</span><span style="color:#c0c5ce;">&#39;, </span><span style="color:#bf616a;">cleanup</span><span style="color:#c0c5ce;">);
+process.</span><span style="color:#bf616a;">on</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">SIGUSR2</span><span style="color:#c0c5ce;">&#39;, </span><span style="color:#bf616a;">cleanup</span><span style="color:#c0c5ce;">);
+process.</span><span style="color:#bf616a;">on</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">uncaughtException</span><span style="color:#c0c5ce;">&#39;, </span><span style="color:#bf616a;">cleanup</span><span style="color:#c0c5ce;">);
+</span></pre>
+<p>It was 4AM, and decided that was it for the day.</p>
+
+</div>
+
+        </div>
+
+    </body>
+
+</html>

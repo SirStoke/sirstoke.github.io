@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+      <!-- Enable responsiveness on mobile devices-->
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+      <title>Random stuff</title>
+
+      <!-- CSS -->
+      <link rel="stylesheet" href="https:&#x2f;&#x2f;sirstoke.github.io&#x2f;print.css" media="print">
+      <link rel="stylesheet" href="https:&#x2f;&#x2f;sirstoke.github.io&#x2f;poole.css">
+      <link rel="stylesheet" href="https:&#x2f;&#x2f;sirstoke.github.io&#x2f;hyde.css">
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400italic,700|Abril+Fatface|Raleway">
+
+      
+        <link rel="alternate" type="application/rss+xml" title="RSS" href="https:&#x2f;&#x2f;sirstoke.github.io&#x2f;rss.xml">
+      
+
+      
+      
+    </head>
+
+    <body class="theme-base-08 ">
+        
+            <div class="sidebar">
+                <div class="container sidebar-sticky">
+                    <div class="sidebar-about">
+                        
+                            <a href="https:&#x2f;&#x2f;sirstoke.github.io"><h1>Random stuff</h1></a>
+                            
+                            <p class="lead">Mostly CS. Probably</p>
+                            
+                        
+                    </div>
+
+                    <ul class="sidebar-nav">
+                        
+                        
+                        <li class="sidebar-nav-item"><a href="&#x2f;pages&#x2f;about">About</a></li>
+                        
+                        
+                    </ul>
+                </div>
+            </div>
+        
+
+        <div class="content container">
+            
+<div class="post">
+  <h1 class="post-title">A Song of Bluetooth chinese lamp &amp; excruciating reverse engineering - Day 1</h1>
+  <span class="post-date">2019-03-01</span>
+  <h2 id="prologue">Prologue</h2>
+<p>'twas a cold november evening, and it was probably raining (or maybe it's just how I picture it now).</p>
+<p>Christmas was fast-approaching and I learned through bad experiences that dropping hints on what family and friends could gift me would save me from awkward fake smiles and celebrations later.</p>
+<p>One thing I thought of was one of those cloud-enabled smart bulbs <strong>that already have</strong> integrations with Amazon Alexa or Google Home. You just put the bulb in the socket, swiftly navigate through 2 or 3 web UIs and boom, you should be all set and already living in the future.</p>
+<p>So I dropped that hint during a family dinner and my mom immediately started asking more info, but I neglected her with some brief answers. Oh boy, if only I knew what was going to happen.</p>
+<p>Christmas night came, and with it came the time to unwrap my mom's gift. Something was off. It wasn't a <em>bulb</em>, it was an entire <em>lamp</em>, and not from a brand I knew. While opening the box I remember thinking &quot;Please be WiFi, please be WiFi&quot;. It was Bluetooth.</p>
+<p>Well, maybe not all hope is lost, maybe the company manufacturing these lamps is a good, well versed company. Nope, they make you download the android app from a shady website (not from Google Play).</p>
+<p>No Alexa/Google Home integration: you can only turn it on from the app. And the app displays some random chinese ads every time I open it (which is a lot).</p>
+<p>Maybe reverse engineering the app is easy?</p>
+<h2 id="start-of-the-downfall">Start of the downfall</h2>
+<p>Holidays were still ongoing and I still had ~6-7 free (as in not working) days left.</p>
+<p>I decided it could be fun to no matter what it takes, go as deep in the rabbit hole as necessary to reverse engineer the app (for at least 8 hours-per-day), have my Raspberry PI that was lying around unused for more than a year control the lights and control that via a smart home assistant.</p>
+<p>I had literally no idea on how Bluetooth communication works, so the plan also included to learn that. I guessed that learning from the app code once reversed properly was the right thing to do.</p>
+<p>The journey started searching for reverse engineering tooling for android (I have a <em>very basic</em> understanding on how Android works), and I immediately found <a href="https://github.com/google/enjarify">enjarify</a>, <a href="https://ibotpeaches.github.io/Apktool/">apktool</a> and <a href="https://www.benf.org/other/cfr/">cfr</a>. After a round of apktool + enjarify + cfr I could already see that something was off: cfr found the main <code>Activity</code> to be empty and the smali only consisted of a bunch of <code>nop</code>s.</p>
+<p>As I was feeling the start of an headache I knew it was time to go deeper. Googling for smali tooling found <a href="https://github.com/JesusFreke/smali">baksmali</a>. Manually baksmaling all the dex files (I was starting to doubt apktool) only found an endless and soulless list of nops in all the methods.</p>
+<p>Was there a possibility of multiple entrypoints? Googling out and about finally led me to <a href="https://developer.android.com/reference/android/app/Application">this</a> page, explaining that there could be an <code>Application</code> class defined in the <code>AndroidManifest</code>, and there it was: <code>s/h/e/l/l/S</code> (what a peculiar name choice btw). Cfr did not work on this class (it decompiled to a bunch of nonsense), and when this news hit me I could feel my head starting to catch fire.</p>
+<p>After a big and deep breath I dived into the <code>S</code> class smali with the help of the almighty <a href="http://pallergabor.uw.hu/androidblog/dalvik_opcodes.html">reference</a>. <code>S</code> calls the method <code>ra</code> of the class <code>N</code>, which is a JNI native method. <code>N</code> seems to load a native <code>libexec.so</code>, which I found under <code>assets/ijm_lib/{armeabi, x86}</code>. At this point my head was almost exploding.</p>
+<p>It was 3 AM, and I was googling if somebody encountered this already and perhaps wrote something to unpack it? <a href="https://www4.comp.polyu.edu.hk/%7Ecsxluo/DexHunter.pdf">This paper</a> described exactly what I was looking for, but I could not get any of that to work. I also ended up on a random chinese forum which I tried translating with Google Translate. Turns out people usually use IDA and dump the process memory to unpack this particular packer. That seemed a bit convoluted to work for me, so I decided to continue with static analysis. And also go to bed for the day.</p>
+<h2 id="notes">Notes</h2>
+<p>I couldn't find the exact lamp but it comes from the same company that makes <a href="https://www.amazon.com/HOREVO-Dimmable-Bluetooth-Cellphone-Temperature/dp/B01HCRSIXE/ref=sr_1_1?keywords=HOREVO&amp;qid=1551544293&amp;s=gateway&amp;sr=8-1">this</a> lamp (Horevo). The app also appears to be the same from the screenshots.</p>
+
+</div>
+
+        </div>
+
+    </body>
+
+</html>
