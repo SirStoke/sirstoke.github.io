@@ -1,7 +1,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     
         <url>
-            <loc>http://127.0.0.1:1111/article-1/</loc>
+            <loc>https://sirstoke.github.io/article-1/</loc>
             
                 <lastmod>2019-03-01</lastmod>
             
@@ -9,7 +9,7 @@
     
     
         <url>
-            <loc>http://127.0.0.1:1111/</loc>
+            <loc>https://sirstoke.github.io/</loc>
         </url>
     
     
