@@ -1,0 +1,50 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>Random stuff</title>
+        <link>https://sirstoke.github.io</link>
+        <description>Mostly CS. Probably</description>
+        <generator>Zola</generator>
+        <language>en</language>
+        <atom:link href="https://sirstoke.github.io/rss.xml" rel="self" type="application/rss+xml"/>
+        <lastBuildDate>Sat, 02 Mar 2019 00:00:00 +0000</lastBuildDate>
+        
+            <item>
+                <title>Whoami</title>
+                <pubDate>Sat, 02 Mar 2019 00:00:00 +0000</pubDate>
+                <link>https://sirstoke.github.io/pages/about/</link>
+                <guid>https://sirstoke.github.io/pages/about/</guid>
+                <description>&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;SirStoke&quot;&gt;I&lt;&#x2F;a&gt; am mostly a pure FP Scala developer, longtime Archlinux user and I once loved to reverse engineer and exploit stuff. I also am a quite avid videogamer.&lt;&#x2F;p&gt;
+&lt;p&gt;I currently work as the Lead dev for &lt;a href=&quot;https:&#x2F;&#x2F;www.efficiam.com&quot;&gt;Efficiam&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+            </item>
+        
+            <item>
+                <title>A Song of Bluetooth chinese lamp &amp; excruciating reverse engineering - Day 1</title>
+                <pubDate>Fri, 01 Mar 2019 00:00:00 +0000</pubDate>
+                <link>https://sirstoke.github.io/chinese-lamp-reverse-engineer-day-1/</link>
+                <guid>https://sirstoke.github.io/chinese-lamp-reverse-engineer-day-1/</guid>
+                <description>&lt;h2 id=&quot;prologue&quot;&gt;Prologue&lt;&#x2F;h2&gt;
+&lt;p&gt;&#x27;twas a cold november evening, and it was probably raining (or maybe it&#x27;s just how I picture it now).&lt;&#x2F;p&gt;
+&lt;p&gt;Christmas was fast-approaching and I learned through bad experiences that dropping hints on what family and friends could gift me would save me from awkward fake smiles and celebrations later.&lt;&#x2F;p&gt;
+&lt;p&gt;One thing I thought of was one of those cloud-enabled smart bulbs &lt;strong&gt;that already have&lt;&#x2F;strong&gt; integrations with Amazon Alexa or Google Home. You just put the bulb in the socket, swiftly navigate through 2 or 3 web UIs and boom, you should be all set and already living in the future.&lt;&#x2F;p&gt;
+&lt;p&gt;So I dropped that hint during a family dinner and my mom immediately started asking more info, but I neglected her with some brief answers. Oh boy, if only I knew what was going to happen.&lt;&#x2F;p&gt;
+&lt;p&gt;Christmas night came, and with it came the time to unwrap my mom&#x27;s gift. Something was off. It wasn&#x27;t a &lt;em&gt;bulb&lt;&#x2F;em&gt;, it was an entire &lt;em&gt;lamp&lt;&#x2F;em&gt;, and not from a brand I knew. While opening the box I remember thinking &amp;quot;Please be WiFi, please be WiFi&amp;quot;. It was Bluetooth.&lt;&#x2F;p&gt;
+&lt;p&gt;Well, maybe not all hope is lost, maybe the company manufacturing these lamps is a good, well versed company. Nope, It&#x27;s chinese, and they make you download the android app from a shady site (not from Google Play).&lt;&#x2F;p&gt;
+&lt;p&gt;No Alexa&#x2F;Google Home integration: you can only turn it on from the app. And the app displays some random chinese ads every time I open it (which is a lot).&lt;&#x2F;p&gt;
+&lt;p&gt;Maybe reverse engineering the app is easy?&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;start-of-the-downfall&quot;&gt;Start of the downfall&lt;&#x2F;h2&gt;
+&lt;p&gt;Holidays were still ongoing and I still had ~6-7 free (as in not working) days left.&lt;&#x2F;p&gt;
+&lt;p&gt;I decided it could be fun to no matter what it takes, go as deep in the rabbit hole as necessary to reverse engineer the app (for at least 8 hours-per-day), have my Raspberry PI that was lying around unused for more than a year control the lights and control that via a smart home assistant.&lt;&#x2F;p&gt;
+&lt;p&gt;I had literally no idea on how Bluetooth communication works, so the plan also included to learn that. I guessed that learning from the app code once reversed properly was the right thing to do.&lt;&#x2F;p&gt;
+&lt;p&gt;The journey started searching for reverse engineering tooling for android (I have a &lt;em&gt;very basic&lt;&#x2F;em&gt; understanding on how Android works), and I immediately found &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;google&#x2F;enjarify&quot;&gt;enjarify&lt;&#x2F;a&gt;, &lt;a href=&quot;https:&#x2F;&#x2F;ibotpeaches.github.io&#x2F;Apktool&#x2F;&quot;&gt;apktool&lt;&#x2F;a&gt; and &lt;a href=&quot;https:&#x2F;&#x2F;www.benf.org&#x2F;other&#x2F;cfr&#x2F;&quot;&gt;cfr&lt;&#x2F;a&gt;. After a round of apktool + enjarify + cfr I could already see that something was off: cfr found the main &lt;code&gt;Activity&lt;&#x2F;code&gt; to be empty and the smali only consisted of a bunch of &lt;code&gt;nop&lt;&#x2F;code&gt;s.&lt;&#x2F;p&gt;
+&lt;p&gt;As I was feeling the start of an headache I knew it was time to go deeper. Googling for smali tooling found &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;JesusFreke&#x2F;smali&quot;&gt;baksmali&lt;&#x2F;a&gt;. Manually baksmaling all the dex files (I was starting to doubt apktool) only found an endless and soulless list of nops in all the methods.&lt;&#x2F;p&gt;
+&lt;p&gt;Was there a possibility of multiple entrypoints? Googling out and about finally led me to &lt;a href=&quot;https:&#x2F;&#x2F;developer.android.com&#x2F;reference&#x2F;android&#x2F;app&#x2F;Application&quot;&gt;this&lt;&#x2F;a&gt; page, explaining that there could be an &lt;code&gt;Application&lt;&#x2F;code&gt; class defined in the &lt;code&gt;AndroidManifest&lt;&#x2F;code&gt;, and there it was: &lt;code&gt;s&#x2F;h&#x2F;e&#x2F;l&#x2F;l&#x2F;S&lt;&#x2F;code&gt; (what a peculiar name choice btw). Cfr did not work on this class (it decompiled to a bunch of nonsense), and when this news hit me I could feel my head starting to catch fire.&lt;&#x2F;p&gt;
+&lt;p&gt;After a big and deep breath I dived into the &lt;code&gt;S&lt;&#x2F;code&gt; class smali with the help of the almighty &lt;a href=&quot;http:&#x2F;&#x2F;pallergabor.uw.hu&#x2F;androidblog&#x2F;dalvik_opcodes.html&quot;&gt;reference&lt;&#x2F;a&gt;. &lt;code&gt;S&lt;&#x2F;code&gt; calls the method &lt;code&gt;ra&lt;&#x2F;code&gt; of the class &lt;code&gt;N&lt;&#x2F;code&gt;, which is a JNI native method. &lt;code&gt;N&lt;&#x2F;code&gt; seems to load a native &lt;code&gt;libexec.so&lt;&#x2F;code&gt;, which I found under &lt;code&gt;assets&#x2F;ijm_lib&#x2F;{armeabi, x86}&lt;&#x2F;code&gt;. At this point my head was almost exploding.&lt;&#x2F;p&gt;
+&lt;p&gt;It was 3 AM, and I was googling if somebody encountered this already and perhaps wrote something to unpack it? &lt;a href=&quot;https:&#x2F;&#x2F;www4.comp.polyu.edu.hk&#x2F;%7Ecsxluo&#x2F;DexHunter.pdf&quot;&gt;This paper&lt;&#x2F;a&gt; described exactly what I was looking for, but I could not get any of that to work. I also ended up on a random chinese forum which I tried translating with Google Translate. Turns out people usually use IDA and dump the process memory to unpack this particular packer. That seemed a bit convoluted to work for me, so I decided to continue with static analysis. And also go to bed for the day.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;notes&quot;&gt;Notes&lt;&#x2F;h2&gt;
+&lt;p&gt;I couldn&#x27;t find the exact lamp but it comes from the same company that makes &lt;a href=&quot;https:&#x2F;&#x2F;www.amazon.com&#x2F;HOREVO-Dimmable-Bluetooth-Cellphone-Temperature&#x2F;dp&#x2F;B01HCRSIXE&#x2F;ref=sr_1_1?keywords=HOREVO&amp;amp;qid=1551544293&amp;amp;s=gateway&amp;amp;sr=8-1&quot;&gt;this&lt;&#x2F;a&gt; lamp (Horevo). The app also appears to be the same from the screenshots.&lt;&#x2F;p&gt;
+</description>
+            </item>
+        
+    </channel>
+</rss>
