@@ -6,7 +6,30 @@
         <generator>Zola</generator>
         <language>en</language>
         <atom:link href="https://sirstoke.github.io/rss.xml" rel="self" type="application/rss+xml"/>
-        <lastBuildDate>Sat, 02 Mar 2019 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Tue, 05 Mar 2019 00:00:00 +0000</lastBuildDate>
+        
+            <item>
+                <title>A Song of Bluetooth chinese lamp &amp; excruciating reverse engineering - Day 2</title>
+                <pubDate>Tue, 05 Mar 2019 00:00:00 +0000</pubDate>
+                <link>https://sirstoke.github.io/chinese-lamp-reverse-engineer-day-2/</link>
+                <guid>https://sirstoke.github.io/chinese-lamp-reverse-engineer-day-2/</guid>
+                <description>&lt;p&gt;&lt;a href=&quot;&#x2F;chinese-lamp-reverse-engineer-day-1.md&quot;&gt;Previous article&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;we-need-to-go-deeper&quot;&gt;We need to go deeper&lt;&#x2F;h2&gt;
+&lt;p&gt;At this point I knew that I needed to do what all the cool kids are doing nowadays and &lt;a href=&quot;https:&#x2F;&#x2F;en.wikipedia.org&#x2F;wiki&#x2F;Piracy&quot;&gt;totally buy&lt;&#x2F;a&gt; IDA Pro, but I wanted to try and go on the open source path. So I again turned to Google and found &lt;a href=&quot;https:&#x2F;&#x2F;rada.re&#x2F;r&#x2F;&quot;&gt;radare2&lt;&#x2F;a&gt;, and even better I found &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;radareorg&#x2F;cutter&quot;&gt;Cutter&lt;&#x2F;a&gt;, an experimental GUI for radare2.&lt;&#x2F;p&gt;
+&lt;p&gt;I should also point out that I was reversing the x86 version of the packer because I am just more accustomed to x86 assembly. Sorry not sorry.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;Readelf -a&lt;&#x2F;code&gt; never fails to amaze me and it found multiple entrypoints:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;libexec_entrypoints.png&quot; alt=&quot;YOU GET AN ENTRYPOINT! AND YOU GET AN ENTRYPOINT! EVERYONE..&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Fired Cutter up, opened &lt;code&gt;x86&#x2F;libexec.so&lt;&#x2F;code&gt;, added a symbol to &lt;code&gt;+0x3b530&lt;&#x2F;code&gt; and started looking around.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;em&gt;Everything&lt;&#x2F;em&gt; except the bytes around that function look gibberish, and that usually is pretty promising. I spark with joy recognizing some &lt;code&gt;INT 0x80&lt;&#x2F;code&gt; after &lt;code&gt;mov eax, 9&lt;&#x2F;code&gt; (mmap).&lt;&#x2F;p&gt;
+&lt;p&gt;I see that Cutter has a big play button, and after sprinkling breakpoints on some &lt;code&gt;call&lt;&#x2F;code&gt;s I click on it. Cutter suddenly switches to an horrible black theme and &lt;code&gt;push&lt;&#x2F;code&gt; instructions don&#x27;t seem to work (they literally don&#x27;t put the value on the stack).&lt;&#x2F;p&gt;
+&lt;p&gt;At the time of writing Cutter is considered beta software. Maybe learning radare2 cli can help?&lt;&#x2F;p&gt;
+&lt;p&gt;I spend the rest of the evening reading the radare2 &lt;a href=&quot;https:&#x2F;&#x2F;radare.gitbooks.io&#x2F;radare2book&#x2F;content&#x2F;&quot;&gt;official book&lt;&#x2F;a&gt; (it looked &lt;em&gt;very&lt;&#x2F;em&gt; cool) and already being a vim user I felt quite at home.&lt;&#x2F;p&gt;
+&lt;p&gt;But I was still having problems with actually running the function.&lt;&#x2F;p&gt;
+&lt;p&gt;I decided to chat about this project with a &lt;a href=&quot;https:&#x2F;&#x2F;twitter.com&#x2F;wsxarcher&quot;&gt;dear friend&lt;&#x2F;a&gt; of mine that works in the cybersecurity field and he recommended &lt;a href=&quot;http:&#x2F;&#x2F;www.giovanni-rocca.com&#x2F;&quot;&gt;Giovanni Rocca&#x27;s blog&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;After reading Giovanni&#x27;s blog (&lt;a href=&quot;http:&#x2F;&#x2F;www.giovanni-rocca.com&#x2F;giving-yourself-a-window-to-debug-a-shared-library-before-dt_init-with-frida-on-android&#x2F;&quot;&gt;this&lt;&#x2F;a&gt; particular article to be precise) I am convinced I need to use &lt;a href=&quot;https:&#x2F;&#x2F;www.frida.re&#x2F;&quot;&gt;frida&lt;&#x2F;a&gt; and that, in general, I must continue my dynamic analysis on a real phone. Time to root my OnePlus 6. And I need to do this on Windows. Darn it.&lt;&#x2F;p&gt;
+&lt;p&gt;TL;DR for the day: Wasted an evening learning radare2, ended up using Frida AND needed to use the worst OS I could end up using.&lt;&#x2F;p&gt;
+</description>
+            </item>
         
             <item>
                 <title>Whoami</title>
